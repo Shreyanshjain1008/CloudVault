@@ -1,15 +1,14 @@
 from fastapi import FastAPI
 from app.database import Base, engine
-from app.routes import auth, folders, files, shares, public_links
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.routes import auth, folders, files, shares, public_links
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="CloudVault API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "https://cloud-vault-weld.vercel.app"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
