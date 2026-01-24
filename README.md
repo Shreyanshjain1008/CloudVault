@@ -1,40 +1,31 @@
 # CloudVault ☁️  
 ### Secure Cloud File Storage & Sharing Platform
 
-CloudVault is a **cloud-based file storage and sharing web application** inspired by the core features of Google Drive.  
-It allows users to securely upload, organize, search, and share files using **role-based access control**, built with a **FastAPI backend** and **React frontend**.
+CloudVault is a full-stack cloud storage application inspired by Google Drive. It allows users to securely upload, manage, preview, star, delete, and restore files with authentication and modern UI., built with a **FastAPI backend** and **React frontend**.
 
 ---
 
 ## 🚀 Features
 
 ### 🔐 Authentication & Security
-- Email & password authentication
-- Google OAuth support
-- JWT-based authentication (HttpOnly cookies)
-- Role-based access control (Owner, Editor, Viewer)
-- Secure signed URLs for file access
-- Server-side permission enforcement
+- User registration & login
+- JWT-based authentication
+- Protected routes (My Drive, Trash, Shared)
 
 ### 📁 File & Folder Management
-- Upload & download files (drag & drop)
-- Nested folder hierarchy
-- Rename, move, and delete files/folders
-- Breadcrumb-based navigation
-- Starred files
-- Trash with restore (soft delete)
+- Upload files (multi-file supported)
+- Drag & drop upload
+- Upload progress bar
+- File preview (images, documents)
+- Star / Unstar files
+- Move files to Trash
+- Restore from Trash
+- Permanent delete
 
 ### 🤝 File Sharing
 - Share files/folders with users
-- Viewer / Editor permissions
 - Public shareable links
 - Optional link expiry & password protection
-
-### 🔍 Search & Organization
-- Search by file name
-- Filter by file type
-- Sorting (name, size, date)
-- Pagination & lazy loading
 
 ---
 
@@ -43,7 +34,7 @@ It allows users to securely upload, organize, search, and share files using **ro
 ### Frontend
 - React (Vite)
 - Tailwind CSS
-- React Query (TanStack)
+- React Router
 - Axios
 - React Dropzone
 
@@ -58,8 +49,8 @@ It allows users to securely upload, organize, search, and share files using **ro
 - Supabase Storage (Signed URLs)
 
 ### Deployment
-- Frontend: Vercel / Netlify
-- Backend: Render / Fly.io
+- Frontend: Vercel 
+- Backend: Render 
 - Database & Storage: Supabase
 
 ---
@@ -109,19 +100,6 @@ frontend/
 
 ---
 
-## 🔑 User Roles & Permissions
-
-| Role   | Permissions |
-|-------|-------------|
-| Owner | Full control |
-| Editor | Upload, edit, delete |
-| Viewer | Read-only |
-| Public User | Access via shared link |
-
-All permission checks are enforced **server-side**.
-
----
-
 ## 🔌 API Endpoints (Sample)
 
 ### Auth
@@ -166,6 +144,8 @@ All permission checks are enforced **server-side**.
 ### Backend
 
 cd backend
+python -m venv venv
+venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 
