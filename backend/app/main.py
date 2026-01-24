@@ -7,8 +7,8 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="CloudVault API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["http://localhost:5173", "https://cloud-vault-weld.vercel.app"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -16,7 +16,6 @@ app.add_middleware(
 app.include_router(files.router)
 app.include_router(auth.router)
 app.include_router(folders.router)
-app.include_router(files.router)
 app.include_router(shares.router)
 app.include_router(public_links.router)
 
