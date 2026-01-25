@@ -8,9 +8,9 @@ app = FastAPI(title="CloudVault API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "https://cloud-vault-weld.vercel.app"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["*"],
 )
 
 app.include_router(files.router)
