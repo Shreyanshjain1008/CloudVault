@@ -71,7 +71,7 @@ export default function Login() {
             </div>
           )}
 
-          <button className="login-btn" onClick={submit}>
+          <button type="button" className="login-btn" onClick={submit}>
             {isSignup ? "Sign Up" : "Sign In"}
           </button>
 
