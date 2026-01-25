@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, UploadFile, File as FastAPIFile, HTTPException
-from fastapi.responses import FileResponse as FastAPIFileResponse
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
-import os
-import shutil
 
 from app.database import SessionLocal
 from app.models.file import File as FileModel
 from app.schemas.file import FileResponse
 from app.core.deps import get_current_user
+from app.utils.supabase import (
+    upload_file_to_supabase,
+    generate_signed_url,
+    delete_file_from_supabase,
+)
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
@@ -22,48 +24,33 @@ def get_db():
         db.close()
 
 
-# ---------------- TRASH ----------------
-@router.get("/trash", response_model=list[FileResponse])
-def list_trash(
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user)
-):
-    return db.query(FileModel).filter(
-        FileModel.owner_id == user.id,
-        FileModel.is_deleted == True
-    ).all()
-    
 # ---------------- UPLOAD ----------------
-@router.post("/upload", response_model=FileResponse)
+@router.post("/upload")
 def upload_file(
-    file: UploadFile = FastAPIFile(...),
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
+    path = upload_file_to_supabase(file, user.id)
+
     new_file = FileModel(
-        name=file.filename,
+        filename=file.filename,
+        storage_path=path,
         owner_id=user.id,
-        size=file.size,
-        mime_type=file.content_type,
-        is_deleted=False,
-        is_starred=False
     )
 
     db.add(new_file)
     db.commit()
     db.refresh(new_file)
 
-    # Save the file to disk
-    with open(f"app/files/{new_file.id}", "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    return {"message": "Uploaded successfully", "id": new_file.id}
 
-    return new_file
 
 # ---------------- LIST FILES (My Drive) ----------------
 @router.get("", response_model=list[FileResponse])
 def list_files(
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     return db.query(FileModel).filter(
         FileModel.owner_id == user.id,
@@ -71,46 +58,30 @@ def list_files(
     ).all()
 
 
-# ---------------- SEARCH FILES ----------------
+# ---------------- SEARCH ----------------
 @router.get("/search", response_model=list[FileResponse])
 def search_files(
     q: str,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     return db.query(FileModel).filter(
         FileModel.owner_id == user.id,
         FileModel.is_deleted == False,
-        FileModel.name.ilike(f"%{q}%")
+        FileModel.filename.ilike(f"%{q}%")
     ).all()
 
 
-# ---------------- VIEW FILE  ----------------
-@router.get("/{file_id}")
-def view_file(
-    file_id: UUID,
+# ---------------- TRASH ----------------
+@router.get("/trash", response_model=list[FileResponse])
+def list_trash(
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
-    file = db.query(FileModel).filter(
-        FileModel.id == file_id,
-        FileModel.owner_id == user.id
-    ).first()
-
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    file_path = f"app/files/{file.id}"
-    if not os.path.exists(file_path):
-        # Fallback to old path
-        old_path = f"app/uploaded_files/{file.id}"
-        if os.path.exists(old_path):
-            file_path = old_path
-        else:
-            raise HTTPException(status_code=404, detail="File not found on disk")
-
-    return FastAPIFileResponse(file_path, media_type=file.mime_type, filename=file.name)
-
+    return db.query(FileModel).filter(
+        FileModel.owner_id == user.id,
+        FileModel.is_deleted == True
+    ).all()
 
 
 # ---------------- STAR ----------------
@@ -118,7 +89,7 @@ def view_file(
 def toggle_star(
     file_id: UUID,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     file = db.query(FileModel).filter(
         FileModel.id == file_id,
@@ -126,10 +97,11 @@ def toggle_star(
     ).first()
 
     if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(404, "File not found")
 
     file.is_starred = not file.is_starred
     db.commit()
+
     return {"starred": file.is_starred}
 
 
@@ -138,7 +110,7 @@ def toggle_star(
 def move_to_trash(
     file_id: UUID,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     file = db.query(FileModel).filter(
         FileModel.id == file_id,
@@ -147,10 +119,11 @@ def move_to_trash(
     ).first()
 
     if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(404, "File not found")
 
     file.is_deleted = True
     db.commit()
+
     return {"message": "Moved to trash"}
 
 
@@ -159,7 +132,7 @@ def move_to_trash(
 def restore_file(
     file_id: UUID,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     file = db.query(FileModel).filter(
         FileModel.id == file_id,
@@ -168,19 +141,20 @@ def restore_file(
     ).first()
 
     if not file:
-        raise HTTPException(status_code=404, detail="File not found in trash")
+        raise HTTPException(404, "File not found in trash")
 
     file.is_deleted = False
     db.commit()
+
     return {"message": "Restored"}
 
 
-# ---------------- PERMANENT DELETE (FIXED) ----------------
+# ---------------- PERMANENT DELETE ----------------
 @router.delete("/{file_id}/permanent")
 def permanent_delete(
     file_id: UUID,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     file = db.query(FileModel).filter(
         FileModel.id == file_id,
@@ -188,12 +162,9 @@ def permanent_delete(
     ).first()
 
     if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(404, "File not found")
 
-    # Delete the file from disk
-    file_path = f"app/files/{file.id}"
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    delete_file_from_supabase(file.storage_path)
 
     db.delete(file)
     db.commit()
@@ -201,3 +172,20 @@ def permanent_delete(
     return {"message": "Permanently deleted"}
 
 
+# ---------------- DOWNLOAD ----------------
+@router.get("/{file_id}/download")
+def download_file(
+    file_id: UUID,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    file = db.query(FileModel).filter(
+        FileModel.id == file_id,
+        FileModel.owner_id == user.id
+    ).first()
+
+    if not file:
+        raise HTTPException(404, "File not found")
+
+    url = generate_signed_url(file.storage_path)
+    return {"url": url}
