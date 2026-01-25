@@ -18,9 +18,13 @@ export default function UploadZone({ onUploaded }) {
 
       api.post("/files/upload", form, {
         onUploadProgress: (e) => {
-          upload.progress = Math.round((e.loaded * 100) / e.total);
-          setUploads((u) => [...u]);
-        },
+        const percent = Math.round((e.loaded * 100) / e.total);
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.name === upload.name ? { ...u, progress: percent } : u
+          )
+        );
+      },
       }).then((res) => {
         onUploaded(res.data);
       });

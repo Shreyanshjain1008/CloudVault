@@ -1,9 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://cloudvault-sq8r.onrender.com",
-  headers: {"Content-Type": "application/json"
-  },
+  baseURL: "https://cloudvault-sq8r.onrender.com",   
 });
 
 api.interceptors.request.use((config) => {

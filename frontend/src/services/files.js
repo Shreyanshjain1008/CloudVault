@@ -6,5 +6,13 @@ export const searchFiles = (q) =>
 export const getTrash = () =>
   api.get("/files/trash");
 
-export const initUpload = (data) =>
-  api.post("/files/init-upload", data);
+export const uploadFile = (file) => {
+  const formData = new FormData();
+  formData.append("file", file); // MUST be "file"
+
+  return api.post("/files/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
