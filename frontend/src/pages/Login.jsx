@@ -9,6 +9,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
 
   const submit = async () => {
+    if (password.length > 72) {
+    alert("Password must be 72 characters or less");
+    return;
+    }
     try {
       if (isSignup) {
         await api.post("/auth/register", { name, email, password });
@@ -24,6 +28,7 @@ export default function Login() {
       alert("Authentication failed: " + (error.response?.data?.detail || "Unknown error"));
     }
   };
+
 
   return (
     <div className="login-page">
