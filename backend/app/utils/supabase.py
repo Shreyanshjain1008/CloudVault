@@ -7,6 +7,13 @@ from app.core.config import (
     SUPABASE_BUCKET,
 )
 
+import os
+import uuid
+
+os.environ.pop("HTTP_PROXY", None)
+os.environ.pop("HTTPS_PROXY", None)
+os.environ.pop("ALL_PROXY", None)
+
 supabase = create_client(
     SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY
