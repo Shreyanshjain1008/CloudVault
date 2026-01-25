@@ -30,6 +30,8 @@ def upload_file(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     path = upload_file_to_supabase(file, user.id)
 
     new_file = FileModel(
