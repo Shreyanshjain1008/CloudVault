@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File as FastAPIFile, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
-from app.database import SessionLocal
+from typing import List
+
+from app.database import get_db
+from app.core.deps import get_current_user
 from app.models.file import File as FileModel
 from app.schemas.file import FileResponse
-from app.core.deps import get_current_user
 from app.utils.supabase import (
     upload_file_to_supabase,
     generate_signed_url,
@@ -14,39 +16,8 @@ from app.utils.supabase import (
 router = APIRouter(prefix="/files", tags=["Files"])
 
 
-# ---------------- DB ----------------
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-# ---------------- UPLOAD ----------------
-@router.post("/upload")
-def upload_file(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    path = upload_file_to_supabase(file, user.id)
-
-    new_file = FileModel(
-        filename=file.filename,
-        storage_path=path,
-        owner_id=user.id,
-    )
-
-    db.add(new_file)
-    db.commit()
-    db.refresh(new_file)
-
-    return {"message": "Uploaded successfully", "id": new_file.id}
-
-
 # ---------------- LIST FILES (My Drive) ----------------
-@router.get("", response_model=list[FileResponse])
+@router.get("", response_model=List[FileResponse])
 def list_files(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
@@ -54,11 +25,37 @@ def list_files(
     return db.query(FileModel).filter(
         FileModel.owner_id == user.id,
         FileModel.is_deleted == False
-    ).all()
+    ).order_by(FileModel.created_at.desc()).all()
+
+
+# ---------------- UPLOAD ----------------
+@router.post("/upload", response_model=FileResponse)
+def upload_file(
+    file: UploadFile = FastAPIFile(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    storage_path = upload_file_to_supabase(file, str(user.id))
+
+    new_file = FileModel(
+        name=file.filename,
+        owner_id=user.id,
+        mime_type=file.content_type,
+        size=file.size or 0,
+        storage_path=storage_path,
+        is_deleted=False,
+        is_starred=False
+    )
+
+    db.add(new_file)
+    db.commit()
+    db.refresh(new_file)
+
+    return new_file
 
 
 # ---------------- SEARCH ----------------
-@router.get("/search", response_model=list[FileResponse])
+@router.get("/search", response_model=List[FileResponse])
 def search_files(
     q: str,
     db: Session = Depends(get_db),
@@ -67,12 +64,12 @@ def search_files(
     return db.query(FileModel).filter(
         FileModel.owner_id == user.id,
         FileModel.is_deleted == False,
-        FileModel.filename.ilike(f"%{q}%")
+        FileModel.name.ilike(f"%{q}%")
     ).all()
 
 
 # ---------------- TRASH ----------------
-@router.get("/trash", response_model=list[FileResponse])
+@router.get("/trash", response_model=List[FileResponse])
 def list_trash(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
@@ -83,7 +80,7 @@ def list_trash(
     ).all()
 
 
-# ---------------- STAR ----------------
+# ---------------- STAR / UNSTAR ----------------
 @router.patch("/{file_id}/star")
 def toggle_star(
     file_id: UUID,
@@ -171,9 +168,9 @@ def permanent_delete(
     return {"message": "Permanently deleted"}
 
 
-# ---------------- DOWNLOAD ----------------
-@router.get("/{file_id}/download")
-def download_file(
+# ---------------- VIEW / DOWNLOAD ----------------
+@router.get("/{file_id}/view")
+def view_file(
     file_id: UUID,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
@@ -186,5 +183,5 @@ def download_file(
     if not file:
         raise HTTPException(404, "File not found")
 
-    url = generate_signed_url(file.storage_path)
-    return {"url": url}
+    signed_url = generate_signed_url(file.storage_path)
+    return {"url": signed_url}
