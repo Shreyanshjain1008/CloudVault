@@ -15,7 +15,7 @@ class File(Base):
 
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     folder_id = Column(UUID(as_uuid=True), ForeignKey("folders.id"), nullable=True)
-
+    storage_path = Column(String, nullable=False)
     is_starred = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)
 
