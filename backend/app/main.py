@@ -10,6 +10,8 @@ app = FastAPI(title="CloudVault API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://cloud-vault-psi.vercel.app/"],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
