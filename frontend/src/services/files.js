@@ -1,18 +1,22 @@
 import api from "./api";
 
-export const searchFiles = (q) =>
-  api.get(`/files/search?q=${q}`);
+/**
+ * Search files
+ */
+export const searchFiles = (q) => api.get(`/files/search?q=${encodeURIComponent(q)}`);
 
-export const getTrash = () =>
-  api.get("/files/trash");
+/**
+ * Get trash
+ */
+export const getTrash = () => api.get("/files/trash");
 
+/**
+ * Upload a single file.
+ * IMPORTANT: do NOT set Content-Type manually — the browser will set the correct multipart boundary.
+ */
 export const uploadFile = (file) => {
   const formData = new FormData();
-  formData.append("file", file); // MUST be "file"
+  formData.append("file", file); // server expects field name "file"
 
-  return api.post("/files/upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  return api.post("/files/upload", formData);
 };
